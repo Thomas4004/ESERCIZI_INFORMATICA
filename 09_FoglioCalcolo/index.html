@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Foglio Elettronico   </title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <button onclick="salvaSuFile()">Salva Su File</button>
+    <button onclick="caricaDaFile()">Carica Da File</button>
+    <button onclick="pulisciFoglio()">Pulisci Foglio</button>
+    <button onclick="evidenziaPrimi()">Evidenzia Primi</button>
+
+    <input type="file" id="fileInput" style="display:none" onchange="gestisciCaricamentoFile(event)">
+
+    <div class="table-container">
+        <table id="table">
+            <thead id="thead"></thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        function creaTabella(righe, colonne) {
+            const thead = document.getElementById('thead');
+            const tbody = document.getElementById('tbody');
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            const rigaHead = document.createElement('tr');
+            for (let i = 0; i <= colonne; i++) {
+                const colonna = document.createElement('th');
+                colonna.textContent = i === 0 ? '' : i;
+                rigaHead.appendChild(colonna);
+            }
+            thead.appendChild(rigaHead);
+
+            for (let i = 1; i <= righe; i++) {
+                const rigaBody = document.createElement('tr');
+                for (let x = 0; x <= colonne; x++) {
+                    const cella = document.createElement('td');
+                    if (x === 0) {
+                        cella.textContent = i;
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        cella.appendChild(input);
+                    }
+                    rigaBody.appendChild(cella);
+                }
+                tbody.appendChild(rigaBody);
+            }
+        }
+
+        function pulisciFoglio() {
+            const inputs = document.querySelectorAll('#table input');
+            inputs.forEach(input => {
+                input.value = '';
+                input.classList.remove('prime');  
+            });
+        }
+
+        function evidenziaPrimi() {
+            const inputs = document.querySelectorAll('#table input');
+            inputs.forEach(input => {
+                const value = parseInt(input.value, 10);
+                if (!isNaN(value) && ePrimo(value)) {
+                    input.classList.add('prime');
+                } else {
+                    input.classList.remove('prime');
+                }
+            });
+        }
+
+        function ePrimo(num) {
+            if (num <= 1) return false;
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return false;
+            }
+            return true;
+        }
+
+        function salvaSuFile() {
+            const rows = [];
+            const tableRows = document.querySelectorAll('#table tr');
+            tableRows.forEach(row => {
+                const rowData = [];
+                row.querySelectorAll('td input').forEach(cell => {
+                    rowData.push(cell.value || '');
+                });
+                rows.push(rowData.join(','));
+            });
+
+            fetch('scrivi.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: rows.join('\n') }),
+            })
+                .then(response => response.text())
+                .then(result => {
+                    alert(result);
+                })
+                .catch(error => console.error('Errore:', error));
+        }
+
+        function caricaDaFile() {
+            fetch('leggi.php')
+                .then(response => response.json())
+                .then(data => {
+                    pulisciFoglio(); 
+                    const tableRows = document.querySelectorAll('#table tr');
+                    data.forEach((row, rowIndex) => {
+                        const inputs = tableRows[rowIndex]?.querySelectorAll('td input');
+                        if (inputs) {
+                            row.forEach((value, colIndex) => {
+                                if (inputs[colIndex]) inputs[colIndex].value = value;
+                            });
+                        }
+                    });
+                })
+                .catch(error => console.error('Errore:', error));
+        }
+
+        function gestisciCaricamentoFile(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const rows = content.split('\n').map(row => row.split(','));
+                pulisciFoglio(); 
+                const tableRows = document.querySelectorAll('#table tr');
+                rows.forEach((row, rowIndex) => {
+                    const inputs = tableRows[rowIndex]?.querySelectorAll('td input');
+                    if (inputs) {
+                        row.forEach((value, colIndex) => {
+                            if (inputs[colIndex]) inputs[colIndex].value = value;
+                        });
+                    }
+                });
+            };
+            reader.readAsText(file);
+        }
+        creaTabella(40, 20);
+    </script>
+</body>
+</html>
